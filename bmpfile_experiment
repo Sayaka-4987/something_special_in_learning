@@ -1,0 +1,297 @@
+#pragma pack(push, 2);
+
+#include "Conio.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <malloc.h>
+#include <math.h>
+#define test
+
+typedef unsigned short int WORD;
+typedef unsigned long int DWORD;
+typedef unsigned char BYTE ;
+
+
+typedef struct tagBITMAPFILEHEADER { // bmfh 
+    WORD    bfType; 
+    DWORD   bfSize; 
+    WORD    bfReserved1; 
+    WORD    bfReserved2; 
+    DWORD   bfOffBits; 
+} BITMAPFILEHEADER; 
+
+typedef struct tagBITMAPINFOHEADER {
+    DWORD biSize;
+    DWORD biWidth;
+    DWORD biHeight;
+    WORD  biPlanes;
+    WORD  biBitCount;
+    DWORD biCompression;
+    DWORD biSizeImage;
+    DWORD biXPelsPerMeter;
+    DWORD biYPelsPerMeter;
+    DWORD biClrUsed;
+    DWORD biClrImportant;
+} BITMAPINFOHEADER;
+
+typedef struct tagRGBQUAD {
+    BYTE rgbBlue;
+    BYTE rgbGreen;
+    BYTE rgbRed;
+    BYTE rgbReserved;
+} RGBQUAD;
+
+BITMAPFILEHEADER bmfHeader;    //位图文件头
+BITMAPINFOHEADER bmiHeader;    //位图信息头
+RGBQUAD *bmiColor;             //调色板指针
+BYTE *MyImage;                 //二维图像的颜色数据指针
+BYTE *MyImageTEMP;             //二维图像的颜色数据暂存指针
+BYTE *MyImage2;                //二维图像的颜色数据指针
+BYTE *MyImage3;                //二维图像的颜色数据指针
+
+///////////////////////////////////
+double MyImageAverage(BYTE* MyImage,int Width,int Height)
+{
+    int i,j;
+    double res;
+    unsigned long int sum=0;
+    for(i=0; i<Height; i++)
+    {
+        for(j=0;j<Width;j++)
+        {
+            sum=sum+*(MyImage+(i*Width)+j);
+        }
+    }
+    res=(double)sum/(Height*Width);
+    return res;
+}
+
+double MyImageVariance(BYTE* MyImage, int Width,int Height,double average)
+{
+    int i,j;
+    double res;
+    double sum=0;
+    for(i=0; i<Height; i++)
+    {
+        for(j=0;j<Width;j++)
+        {
+            sum+=((*(MyImage+(i*Width)+j)-average)*(*(MyImage+(i*Width)+j)-average));
+        }
+    }
+    res=sum/(Height*Width);
+    return res;
+}
+
+/*x,y两个方向卷积核在图像上滑动
+   Gx = f(x+1, y-1) + 2 * f(x+1, y) + f(x +1, y+1) - (f(x-1, y-1) + 2 *  f(x-1, y) + f(x-1, y-1))
+   Gy = f(x-1, y-1) + 2 * f(x, y-1) + f(x+1, y-1) - (f(x-1, y+1) + 2 *  f(x, y+1) + f(x+1, y+1))
+   G=sqrt(Gx * Gx+Gy * Gy）
+sobel算法来自CSDN博主「薄小盒子」的原创文章，遵循 CC 4.0 BY-SA 版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/qq_35306281/article/details/89299726 */
+void SobelDetect(BYTE* MyImage,int Width, int Height)
+{
+    int i,j;//横纵坐标(i,j)---->MyImage[i*Width+j]
+    for(i=1; i<Height-1; i++)
+    {
+        for(j=1;j<Width-1;j++)
+        {
+           float Gx = *(MyImage+((i+1)*Width)+j-1) + 2* MyImage[(i+1)*Width+j]+ MyImage[(i+1)*Width+j+1] - (MyImage[(i-1)*Width+j-1] + 2* MyImage[(i-1)*Width+j] + MyImage[(i-1)*Width+j-1]);
+           float Gy = *(MyImage+((i-1)*Width)+j-1) + 2* MyImage[i*Width+j-1]+ MyImage[(i+1)*Width+j-1] - (MyImage[(i-1)*Width+j+1] + 2* MyImage[i*Width+j+1] + MyImage[(i+1)*Width+j+1]);
+
+           float G = sqrt(Gx * Gx + Gy * Gy);
+            if(G>205)
+                MyImage2[i*Width+j] = 255;
+            else
+                MyImage2[i*Width+j] = 0;
+        }
+    }
+}
+
+void BinaryImage(BYTE* MyImage,int Width, int Height)
+{
+    int i,j;//横纵坐标(i,j)---->MyImage[i*Width+j]
+    for(i=1; i<Height-1; i++)
+    {
+        for (j = 1; j < Width - 1; j++)
+        {
+            float L = MyImage[(i) * Width + j];
+            if (L > 127)
+                MyImage3[i*Width + j] = 255;
+            else
+                MyImage3[i*Width + j] = 0;
+        }
+    }
+}
+//////////////////////////////////////
+
+int main(void)
+{
+
+    FILE *fp;
+    int Palette_Num;
+    int Width;
+    int Height, Width_4;
+    int i, j;
+    DWORD Color_Value;
+/////////////////////////////要打开的文件名↓
+    if ((fp=fopen("grass.bmp","rb"))==NULL)
+    {
+        printf("can not open source file\n");
+        exit(0);
+    }
+
+    fread(&bmfHeader,sizeof(BITMAPFILEHEADER),1,fp);     //从文件中读位图文件头数据到bmfHeader变量
+
+    fread(&bmiHeader,sizeof(bmiHeader),1,fp);     //从文件中读位图信息头数据到bmiHeader变量
+
+    // 判断是否是DIB对象，检查头两个字节是否是"BM"
+     if (bmfHeader.bfType != 0x4D42)
+    {
+        printf("这不是一个位图文件\n");
+        return 1;
+    }
+
+
+        //判断位图的颜色是否是256色
+    if(bmiHeader.biBitCount!=8)
+    {
+        printf("本程序只能显示256色灰度图\n");
+        //getchar();
+        return 1;
+    }
+
+    //查看文件头
+    printf("Print File Header:\n");
+    printf(" bfType=%x \n",bmfHeader.bfType);
+    printf(" bfSize=%d \n",bmfHeader.bfSize);
+    printf(" bfReserved1=%d \n",bmfHeader.bfReserved1);
+    printf(" bfReserved2=%d \n",bmfHeader.bfReserved2);
+    printf(" bfOffBits=%d \n",bmfHeader.bfOffBits);
+
+    printf("\n");
+
+    //查看信息头
+    printf("Print Information Header:\n");
+    printf(" biSize=%d \n",bmiHeader.biSize);
+    printf(" biWidth=%d \n",bmiHeader.biWidth);
+    printf(" biHeight=%d \n",bmiHeader.biHeight);
+    printf(" biPlanes=%d \n",bmiHeader.biPlanes);
+    printf(" biBitCount=%d \n",bmiHeader.biBitCount);
+    printf(" biCompression=%d \n",bmiHeader.biCompression);
+    printf(" biSizeImage=%d \n",bmiHeader.biSizeImage);
+    printf(" biXPelsPerMeter=%d \n",bmiHeader.biXPelsPerMeter);
+    printf(" biYPelsPerMeter=%d \n",bmiHeader.biYPelsPerMeter);
+    printf(" biClrUsed=%d \n",bmiHeader.biClrUsed);
+    printf(" biClrImportant=%d \n",bmiHeader.biClrImportant);  
+
+    Width  = bmiHeader.biWidth;      //从信息头中读出图像宽度
+    Height = bmiHeader.biHeight;     //从信息头中读出图像高度
+    Width_4 = (Width+3)/4*4;         //取一个大于等于Width，并且最接近Width的4的整数倍的数值
+
+    //获取调色板的成员数目，也就是位图所用到的颜色个数
+    if(bmiHeader.biClrUsed==0)
+        Palette_Num = 1<<bmiHeader.biBitCount;
+    else
+        Palette_Num = bmiHeader.biClrUsed;
+
+    //为调色板指针指向的地址分配一块内存空间
+    bmiColor = (RGBQUAD *)malloc(Palette_Num * sizeof(RGBQUAD));
+
+    //从文件中读位图的调色板数据到bmiColor指针指向的缓冲区
+    int x=fread(bmiColor, sizeof(RGBQUAD), Palette_Num, fp);
+    //地址bmiColor，数据长为sizeof(RGBQUAD)，数据个数Palette_Num，文件指针fp
+
+    //查看调色板信息
+    printf("\n");
+    for(i=0;i<Palette_Num;i++)
+    {
+		printf(" Blue =%d",    (*(bmiColor+i)).rgbBlue);
+        printf(" Green=%d",    (*(bmiColor+i)).rgbGreen);
+        printf(" Red  =%d",    (*(bmiColor+i)).rgbRed);
+        printf(" Reserved=%d", (*(bmiColor+i)).rgbReserved);
+        printf("\n");
+        //getchar();
+    }     
+
+    //为图像数据指针指向的地址分配一块内存空间
+    MyImage = (BYTE *)malloc(Width_4*Height*sizeof(BYTE));
+    MyImageTEMP=MyImage;
+
+    fseek(fp, bmfHeader.bfOffBits, 0);    //令文件指针指向位图有效数据的起始位置
+
+    //将位图有效数据输入导入MyImage二维数组中
+    printf("\n");
+    printf("Print the effective data!\n");
+    for(i=0; i<Height; i++)
+    {
+        fread(MyImage, sizeof(BYTE), Width_4, fp);
+        for(j=0;j<Width_4;j++)
+        {
+            printf("%d ",*(MyImage+j));
+        }
+        printf("\n");
+        //getchar();
+        MyImage=MyImage+Width_4;
+    }
+    MyImage=MyImageTEMP;
+////////////////////////////////////////////
+    double average;
+    average=MyImageAverage(MyImage,Width,Height);
+
+    printf("Average is %lf \n",MyImageAverage(MyImage,Width,Height));
+
+    printf("Variance is %lf \n",MyImageVariance(MyImage,Width,Height,average));
+
+    fclose(fp);    //关闭位图文件
+////////////////////////////////////////////以下代码将sobel边缘化后的二维数组写入bmp图像
+    const char *file_name = "test5.bmp";
+
+    MyImage2 = (BYTE *)malloc(Width_4*Height*sizeof(BYTE));//二维图像的颜色数据指针
+
+    fp=fopen(file_name,"wb");
+
+    fwrite(&bmfHeader,sizeof(BITMAPFILEHEADER),1,fp);     //写入bmfHeader变量到位图文件头数据
+
+    fwrite(&bmiHeader,sizeof(bmiHeader),1,fp);     //写入bmiHeader变量到位图信息头数据
+
+    fwrite(bmiColor, sizeof(RGBQUAD), Palette_Num, fp);
+    //地址bmiColor，数据长为sizeof(RGBQUAD)，数据个数Palette_Num，文件指针fp
+
+    SobelDetect(MyImage,Width,Height);
+
+    fwrite(MyImage2, sizeof(BYTE), Width_4*Height, fp);
+    printf("\n");
+
+    MyImage=MyImageTEMP;
+
+    fclose(fp);
+////////////////////////////////////////////以下代码将二值化后的二维数组写入bmp图像
+    file_name = "test6.bmp";
+
+    MyImage3 = (BYTE *)malloc(Width_4*Height*sizeof(BYTE));//二维图像的颜色数据指针
+
+    fp=fopen(file_name,"wb");
+
+    fwrite(&bmfHeader,sizeof(BITMAPFILEHEADER),1,fp);     //写入bmfHeader变量到位图文件头数据
+
+    fwrite(&bmiHeader,sizeof(bmiHeader),1,fp);     //写入bmiHeader变量到位图信息头数据
+
+    fwrite(bmiColor, sizeof(RGBQUAD), Palette_Num, fp);
+    //地址bmiColor，数据长为sizeof(RGBQUAD)，数据个数Palette_Num，文件指针fp
+
+    BinaryImage(MyImage,Width, Height);
+
+    fwrite(MyImage3, sizeof(BYTE), Width_4*Height, fp);
+    printf("\n");
+
+    MyImage=MyImageTEMP;
+
+    fclose(fp);
+
+
+
+    return 0;
+}
+    
+
+
