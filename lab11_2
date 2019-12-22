@@ -1,0 +1,65 @@
+#include<stdio.h>
+#include<string.h>
+int ifSameChar(char *a,char *b)
+{
+	static int abc[52];
+	char ch;
+	int i,j;
+	int flag=1;
+	for(ch='a',i=0;ch<='z';ch++,i++)
+	{
+	   for(j=0;j<strlen(a);j++) 
+	    {
+		  if(a[j]==ch) {abc[i]++;break; }
+	      if(a[j]==ch-32) {abc[i+26]++;break; }	  
+		}
+		for(j=0;j<strlen(b);j++) 
+	    {
+		  if(b[j]==ch) {abc[i]++;break; }
+	      if(b[j]==ch-32) {abc[i+26]++;break; }
+		}
+	} 
+
+	for(i=0;i<52;i++)
+	  if(abc[i]%2) { flag=0;break;  }
+	
+	return flag;
+}
+
+int ifReorder(char *a,char *b)
+{
+	int i,j=0;
+	int m,n=0;//strlen
+	char tem;
+	m=strlen(a); 
+	n=strlen(b);
+	
+	for(i=0;i<m;i++)
+	   for(j=0;j<n-i;j++)
+	      if(a[j]>a[j+1]) {tem=a[j];a[j]=a[j+1];a[j+1]=tem;  }
+	      
+	for(i=0;i<m;i++)
+	   for(j=0;j<n-i;j++)
+	      if(b[j]>b[j+1]) {tem=b[j];b[j]=b[j+1];b[j+1]=tem;  }
+	      
+	if(strcmp(a,b)==0) return 1;
+	else return 0;
+}
+
+int main()
+{
+	char a[100];
+	char b[100];
+	
+	printf("请依次输入两个只含英文字母的字符串\n");
+	gets(a);
+	gets(b);
+	
+	if(ifSameChar(a,b)) printf("两个字符串由同样的字符组成\n");
+	else printf("两个字符串不是由同样的字符组成\n");
+	
+	if(ifReorder(a,b)) printf("字符串可以通过另一个字符串重排得到\n");
+	else printf("字符串不可以通过另一个字符串重排得到\n");
+	
+	return 0;
+}
