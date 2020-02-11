@@ -1,0 +1,90 @@
+#include<stdio.h>
+#include<math.h>
+#include<stdlib.h>
+int LCM(int a,int b)//返回值为最小公倍数 
+{
+	int m,r,t,gcd,lcm;
+	if(b>a) {t=a;a=b;b=t;}
+	m=a*b;
+	r=a%b;
+	while(r)
+	{
+		a=b;
+		b=r;
+		r=a%b;
+	} 
+	gcd=b;
+	lcm=m/gcd;
+	return lcm;	
+}
+
+int GCD(int a,int b)//返回值为最大公约数
+{
+	int r,t,gcd;
+	if(b>a) {t=a;a=b;b=t;}
+	r=a%b;
+	while(r)
+	{
+		a=b;
+		b=r;
+		r=a%b;
+	} 
+	gcd=b;
+	return gcd;
+}
+
+int main()
+{
+	 //分子Numerator 分母denominator
+	 //分母SumDeno=左Deno,右Deno最小公倍数 
+	 //分子SumNum=左Nume * LCM/左Deno + 右Nume * LCM/右Deno
+	int SumInt,SumNume,SumDeno=0; 
+	int n,i=0;
+	int a[101]={0},b[101]={0};//a分子,b分母 
+	int temLCM,temGCD=0;
+	
+	scanf("%d",&n);
+	for(i=0;i<n;i++)
+	{
+		scanf("%d/%d",&a[i],&b[i]);
+		if(i==0) {SumNume=a[i];SumDeno=b[i];	}
+		else 
+		{
+			temLCM=LCM(SumDeno,b[i]);
+			
+			SumNume=SumNume * temLCM / SumDeno;
+			a[i]=a[i] * temLCM / b[i]; 
+			
+			SumDeno=temLCM;
+			b[i]=temLCM;
+			
+			SumNume+=a[i];
+		}
+	}
+	
+	if(abs(SumNume)>=abs(SumDeno))//结果为假分数时
+	{
+		SumInt=SumNume/SumDeno;
+		SumNume=SumNume-SumInt*SumDeno;
+	}
+	
+	if(SumNume!=0 && GCD(SumNume,SumDeno)!=1 && GCD(SumNume,SumDeno)!=-1)//分数可以约分时 
+	{
+		temGCD=GCD(SumNume,SumDeno);
+		SumNume/=temGCD;
+		SumDeno/=temGCD;
+	}
+	
+	if(SumInt)
+	    printf("%d",SumInt);
+	    
+	if(SumDeno&&SumNume)    
+    {
+    	if(SumInt)
+	       printf(" ");
+		printf("%d/%d",SumNume,SumDeno);
+	}
+	
+	printf("\n");
+	return 0;
+} 
