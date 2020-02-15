@@ -1,0 +1,10 @@
+#include<stdio.h>
+int main()
+{
+	int yyyy,mm,dd;
+	scanf("%d-%d-%d",&mm,&dd,&yyyy);
+	
+	printf("%d-%02d-%02d\n",yyyy,mm,dd);
+	//Fill it with 0
+	return 0;
+}
