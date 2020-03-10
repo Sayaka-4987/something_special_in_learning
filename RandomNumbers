@@ -1,0 +1,73 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define N 1000
+void GenerateRandNumbers(FILE *fp, int number)
+{
+	int arr[N][3]={0};//N=1000
+	int a, b, c, i;
+	for(i=0; i<number; i++)
+	{
+		arr[i][0]=rand()%20;
+		arr[i][1]=rand()%20;
+		arr[i][2]=rand()%20;
+	}
+	
+	fprintf(fp,"%d\n", number);
+	for(i=0; i<number; i++)
+	{
+		fprintf(fp,"%d,%d,%d\n", arr[i][0], arr[i][1], arr[i][2]);
+	}
+	fclose(fp);
+	free(fp);
+}
+
+int main(int argc, char *argv[])
+{
+	FILE *fp;
+	int i;
+	char path[100]="D:\\";
+	int number;//number作为记录条数参数
+	if(argv[1] != NULL)//argv[1]非空 
+	{
+		if(strstr(argv[1], ".txt") == NULL)//argv[1]不是文件名称参数
+		{
+			if(argv[2] != NULL)//argv[2]作为文件名称参数
+			{
+				strcat(path, argv[2]);
+				fp=fopen(path, "w");
+				number=atoi(argv[1]);
+				GenerateRandNumbers(fp, number);
+			}
+			else//argv[1]、argv[2]都不是文件名称参数
+			{
+				fp=fopen("D:\\Lab2untitle.txt", "w");
+				number=atoi(argv[1]);
+				GenerateRandNumbers(fp, number);
+			} 
+		}
+		else//argv[1]是文件名称参数
+		{
+			if(argv[2] != NULL)//argv[2]作为记录条数参数
+			{
+				strcat(path, argv[1]);
+				fp=fopen(path, "w");
+				number=atoi(argv[2]);
+				GenerateRandNumbers(fp, number);
+			} 
+			else//argv[2]为空 
+			{
+				strcat(path, argv[1]);
+				fp=fopen(path, "w");
+				number=rand()%10;
+				GenerateRandNumbers(fp, number);
+			}
+		}
+		///////////////调试部分//////////////
+		for(i=1; i<argc; i++)
+            printf("第 %d 个参数是 %s\n", i, argv[i]);
+        ///////////////调试部分/////////////
+	}
+	
+	return 0;
+}
